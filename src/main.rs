@@ -50,7 +50,12 @@ enum Command {
 }
 
 #[tokio::main]
-async fn run(command: Command) -> Result<()> {
+async fn run(command: Command) {
+    if let Some(err) = wrap_result(command).await.err() {
+        println!("Error crash occurred: {}", err)
+    }
+}
+async fn wrap_result(command: Command) -> Result<()> {
     match command {
         Command::Local {
             local_host,
@@ -80,7 +85,7 @@ async fn run(command: Command) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
+fn main() {
     tracing_subscriber::fmt::init();
-    run(Args::parse().command)
+    run(Args::parse().command);
 }
