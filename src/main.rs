@@ -34,7 +34,7 @@ enum Command {
 
         /// Relentlessly try to reconnect if the connection is lost.
         #[clap(long, default_value_t = false)]
-        relentlessly: bool,
+        relentless: bool,
 
         /// Number of retries to attempt if the connection is lost.
         #[clap(short, long, default_value_t = 0)]
@@ -88,7 +88,7 @@ async fn wrap_result(command: Command) -> Result<()> {
             to,
             port,
             secret,
-            relentlessly,
+            relentless: relentlessly,
             retries,
             fallback_ip,
         } => {
