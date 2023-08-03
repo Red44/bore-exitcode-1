@@ -9,7 +9,7 @@ struct Args {
     command: Command,
 }
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, Clone)]
 enum Command {
     /// Starts a local proxy to the remote server.
     Local {
@@ -25,9 +25,20 @@ enum Command {
         to: String,
 
         /// Optional port on the remote server to select.
+        #[clap(short, long, env = "BORE_FALLBACK_IP")]
+        fallback_ip: Option<String>,
+
+        /// Optional port on the remote server to select.
         #[clap(short, long, default_value_t = 0)]
         port: u16,
 
+        /// Relentlessly try to reconnect if the connection is lost.
+        #[clap(short, long, default_value_t = false)]
+        relentlessly: bool,
+
+        /// Number of retries to attempt if the connection is lost.
+        #[clap(short, long, default_value_t = 0)]
+        retries: u8,
         /// Optional secret for authentication.
         #[clap(short, long, env = "BORE_SECRET", hide_env_values = true)]
         secret: Option<String>,
@@ -55,6 +66,19 @@ async fn run(command: Command) {
         println!("Error crash occurred: {}", err)
     }
 }
+pub async fn start_bore_client(
+    local_host: &str,
+    local_port: u16,
+    to: &str,
+    port: u16,
+    secret: Option<&str>,
+) {
+    let Ok(client) = Client::new(local_host, local_port, to, port, secret).await else {
+        return;
+    };
+    let _ = client.listen().await;
+}
+
 async fn wrap_result(command: Command) -> Result<()> {
     match command {
         Command::Local {
@@ -63,9 +87,38 @@ async fn wrap_result(command: Command) -> Result<()> {
             to,
             port,
             secret,
+            relentlessly,
+            retries,
+            fallback_ip,
         } => {
-            let client = Client::new(&local_host, local_port, &to, port, secret.as_deref()).await?;
-            client.listen().await?;
+            while relentlessly {
+                start_bore_client(&local_host, local_port, &to, port, secret.as_deref()).await;
+
+                if let Some(ref fallback_ip) = fallback_ip {
+                    start_bore_client(
+                        &local_host,
+                        local_port,
+                        fallback_ip,
+                        port,
+                        secret.as_deref(),
+                    )
+                    .await;
+                }
+            }
+            for _ in 0..retries {
+                start_bore_client(&local_host, local_port, &to, port, secret.as_deref()).await;
+
+                if let Some(ref fallback_ip) = fallback_ip {
+                    start_bore_client(
+                        &local_host,
+                        local_port,
+                        fallback_ip,
+                        port,
+                        secret.as_deref(),
+                    )
+                    .await;
+                }
+            }
         }
         Command::Server {
             min_port,
