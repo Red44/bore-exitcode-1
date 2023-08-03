@@ -33,7 +33,7 @@ enum Command {
         port: u16,
 
         /// Relentlessly try to reconnect if the connection is lost.
-        #[clap(short, long, default_value_t = false)]
+        #[clap(long, default_value_t = false)]
         relentlessly: bool,
 
         /// Number of retries to attempt if the connection is lost.
@@ -74,6 +74,7 @@ pub async fn start_bore_client(
     secret: Option<&str>,
 ) {
     let Ok(client) = Client::new(local_host, local_port, to, port, secret).await else {
+        println!("Error occurred while starting bore client");
         return;
     };
     let _ = client.listen().await;
@@ -91,6 +92,7 @@ async fn wrap_result(command: Command) -> Result<()> {
             retries,
             fallback_ip,
         } => {
+            start_bore_client(&local_host, local_port, &to, port, secret.as_deref()).await;
             while relentlessly {
                 start_bore_client(&local_host, local_port, &to, port, secret.as_deref()).await;
 
@@ -139,6 +141,6 @@ async fn wrap_result(command: Command) -> Result<()> {
 }
 
 fn main() {
-    tracing_subscriber::fmt::init();
+    //tracing_subscriber::fmt::init();
     run(Args::parse().command);
 }
