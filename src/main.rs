@@ -73,11 +73,18 @@ pub async fn start_bore_client(
     port: u16,
     secret: Option<&str>,
 ) {
-    let Ok(client) = Client::new(local_host, local_port, to, port, secret).await else {
-        println!("Error occurred while starting bore client");
-        return;
-    };
-    let _ = client.listen().await;
+    match Client::new(local_host, local_port, to, port, secret).await {
+        Ok(client) => {
+            println!("Client started successfully");
+            if let Err(err) = client.listen().await {
+                println!("Error occurred while listening: {}", err);
+            }
+        }
+        Err(error) => {
+            println!("Error occurred while starting bore client: {}", error);
+        }
+    }
+    println!("Bore client stopped");
 }
 
 async fn wrap_result(command: Command) -> Result<()> {
